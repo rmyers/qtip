@@ -5,6 +5,7 @@ Structured logging with structlog and request context.
 from __future__ import annotations
 
 import logging
+import shutil
 import time
 import uuid
 from typing import Any, Awaitable, Callable
@@ -36,9 +37,14 @@ def configure_structlog(settings: Settings | None = None) -> None:
         structlog.processors.UnicodeDecoder(),
     ]
 
-    renderer: structlog.types.Processor = structlog.dev.ConsoleRenderer(colors=True)
-    if log_settings.log_json:  # pragma: no cover
-        renderer = structlog.processors.JSONRenderer()
+    renderer = structlog.processors.JSONRenderer()
+
+    if not log_settings.log_json:  # pragma: no branch
+        term_width = shutil.get_terminal_size().columns
+        pad_event = term_width - 36
+        renderer: structlog.types.Processor = structlog.dev.ConsoleRenderer(
+            colors=True, pad_event=pad_event
+        )
 
     # Configure structlog
     structlog.configure(
@@ -83,10 +89,6 @@ class LoggingExtension(BaseExtension):
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings()
         configure_structlog(settings)
-
-    async def startup(self, registry: svcs.Registry, app: FastAPI) -> dict[str, Any]:
-        # app.add_middleware(RequestLoggingMiddleware)
-        return {}
 
     def middleware(self) -> list[Middleware]:
         return [
