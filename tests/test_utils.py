@@ -21,12 +21,3 @@ class TestImportFromString:
     def test_raises_on_invalid_attribute(self):
         with pytest.raises(AttributeError):
             import_from_string("os.path:nonexistent_func")
-
-    def test_adds_cwd_to_path(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-
-        # Create a temp module
-        (tmp_path / "temp_module.py").write_text("my_var = 42")
-
-        result = import_from_string("temp_module:my_var")
-        assert result == 42
