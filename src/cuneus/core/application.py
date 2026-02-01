@@ -19,7 +19,7 @@ from starlette.middleware import Middleware
 from .settings import Settings
 from .exceptions import ExceptionExtension
 from .logging import LoggingExtension
-from .extensions import Extension, HasCLI, HasExceptionHandler, HasMiddleware
+from .extensions import Extension, HasCLI, HasExceptionHandler, HasMiddleware, HasRoutes
 from ..ext.health import HealthExtension
 
 logger = structlog.stdlib.get_logger("cuneus")
@@ -139,5 +139,8 @@ def build_app(
         if isinstance(ext, HasExceptionHandler):
             logger.debug(f"Loading exception handlers from {ext_name}")
             ext.add_exception_handler(app)
+        if isinstance(ext, HasRoutes):
+            logger.debug(f"Loading routes from {ext_name}")
+            ext.add_routes(app)
 
     return app, app_cli

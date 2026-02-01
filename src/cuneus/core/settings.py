@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import logging
+import pathlib
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
     PyprojectTomlConfigSettingsSource,
     SettingsConfigDict,
 )
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_TOOL_NAME = "cuneus"
 
@@ -64,3 +62,17 @@ class Settings(CuneusBaseSettings):
     # health
     health_enabled: bool = True
     health_prefix: str = "/healthz"
+
+    @classmethod
+    def get_project_root(cls) -> pathlib.Path:
+        """
+        Get the project root by inspecting where pydantic-settings
+        found the pyproject.toml file.
+        """
+        source = PyprojectTomlConfigSettingsSource(
+            cls,
+        )
+        print(source)
+        if source.toml_file_path:
+            return source.toml_file_path.parent
+        return pathlib.Path.cwd()
