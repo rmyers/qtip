@@ -35,7 +35,7 @@ class Extension(Protocol):
 
     def register(
         self, registry: svcs.Registry, app: FastAPI
-    ) -> AsyncContextManager[dict[str, Any]]:
+    ) -> AsyncContextManager[dict[str, Any]]:  # pragma: no cover
         """
         Async context manager for lifecycle.
 
@@ -50,21 +50,21 @@ class Extension(Protocol):
 class HasMiddleware(Protocol):
     """Extension that provides middleware."""
 
-    def middleware(self) -> list[Middleware]: ...
+    def middleware(self) -> list[Middleware]: ...  # pragma: no cover
 
 
 @runtime_checkable
 class HasCLI(Protocol):
     """Extension that provides CLI commands."""
 
-    def register_cli(self, cli_group: Group) -> None: ...
+    def register_cli(self, cli_group: Group) -> None: ...  # pragma: no cover
 
 
 @runtime_checkable
 class HasExceptionHandler(Protocol):
     """Extension that provides exception handlers."""
 
-    def add_exception_handler(self, app: FastAPI) -> None: ...
+    def add_exception_handler(self, app: FastAPI) -> None: ...  # pragma: no cover
 
 
 class BaseExtension:

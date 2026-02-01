@@ -44,7 +44,7 @@ def get_user_cli() -> click.Group | None:
 
 @click.group()
 @click.pass_context
-def cli(ctx: click.Context) -> None:
+def cli(ctx: click.Context) -> None:  # pragma: no cover
     """Cuneus CLI - FastAPI application framework."""
     ctx.ensure_object(dict)
 
@@ -95,7 +95,7 @@ def routes() -> None:
     app = import_from_string(config.app_module)
 
     for route in app.routes:
-        if hasattr(route, "methods"):
+        if hasattr(route, "methods"):  # pragma: no branch
             methods = ",".join(route.methods - {"HEAD", "OPTIONS"})
             click.echo(f"{methods:8} {route.path}")
 
