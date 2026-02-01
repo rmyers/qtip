@@ -7,7 +7,6 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-import svcs
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -152,24 +151,14 @@ class ExceptionExtension(BaseExtension):
 
     Catches AppException subclasses and converts to JSON responses.
     Catches unexpected exceptions and returns generic 500s.
-
-    Usage:
-        from qtip import build_app
-        from qtip.core.exceptions import ExceptionExtension, ExceptionSettings
-
-        app = build_app(
-            settings,
-            extensions=[ExceptionExtension(settings)],
-        )
     """
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings()
 
-    async def startup(self, registry: svcs.Registry, app: FastAPI) -> dict[str, Any]:
+    def add_exception_handler(self, app: FastAPI) -> None:
         app.add_exception_handler(AppException, self._handle_app_exception)  # type: ignore[arg-type]
         app.add_exception_handler(Exception, self._handle_unexpected_exception)
-        return {}
 
     def _handle_app_exception(
         self, request: Request, exc: AppException
@@ -179,7 +168,7 @@ class ExceptionExtension(BaseExtension):
         else:
             log.warning("client_error", error_code=exc.error_code, message=exc.message)
 
-        response = exc.to_response(request.state.get("request_id", None))
+        response = exc.to_response(getattr(request.state, "request_id", None))
 
         headers = {}
         if isinstance(exc, RateLimited) and exc.retry_after:
@@ -194,8 +183,7 @@ class ExceptionExtension(BaseExtension):
     def _handle_unexpected_exception(
         self, request: Request, exc: Exception
     ) -> JSONResponse:
-        log.exception("unexpected_error")
-
+        log.exception("unexpected_error", exc_info=exc)
         response: dict[str, Any] = {
             "error": {
                 "code": "internal_error",
@@ -203,7 +191,7 @@ class ExceptionExtension(BaseExtension):
             }
         }
 
-        if hasattr(request.state, "request_id"):
+        if hasattr(request.state, "request_id"):  # pragma: no branch
             response["error"]["request_id"] = request.state.request_id
 
         if self.settings.debug:
