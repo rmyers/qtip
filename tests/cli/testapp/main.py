@@ -9,7 +9,7 @@ class TestExtension(BaseExtension):
     pass
 
 
-app, cli = build_app(TestExtension)
+app, cli, lifespan = build_app(TestExtension)
 
 
 @cli.command()

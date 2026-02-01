@@ -58,7 +58,7 @@ def build_app(
     settings: Settings | None = None,
     include_defaults: bool = True,
     **fastapi_kwargs: Any,
-) -> tuple[FastAPI, click.Group]:
+) -> tuple[FastAPI, click.Group, svcs.fastapi.lifespan]:
     """
     Build a FastAPI with extensions preconfigured.
 
@@ -140,4 +140,4 @@ def build_app(
             logger.debug(f"Loading routes from {ext_name}")
             ext.add_routes(app)
 
-    return app, app_cli
+    return app, app_cli, lifespan

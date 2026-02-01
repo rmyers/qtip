@@ -43,7 +43,7 @@ class UnhealthyExtension(BaseExtension):
 
 
 async def test_health_endpoints():
-    app, _ = build_app(HealthyExtension)
+    app, _, _ = build_app(HealthyExtension)
 
     with TestClient(app) as client:
         resp = client.get("/healthz")
@@ -61,7 +61,7 @@ async def test_health_endpoints():
 
 
 async def test_health_unhealthy_service():
-    app, _ = build_app(UnhealthyExtension)
+    app, _, _ = build_app(UnhealthyExtension)
 
     with TestClient(app) as client:
         resp = client.get("/healthz")
@@ -73,7 +73,7 @@ async def test_health_unhealthy_service():
 
 
 async def test_readiness_unhealthy_returns_503():
-    app, _ = build_app(UnhealthyExtension)
+    app, _, _ = build_app(UnhealthyExtension)
 
     with TestClient(app) as client:
         resp = client.get("/healthz/ready")
@@ -83,7 +83,7 @@ async def test_readiness_unhealthy_returns_503():
 
 async def test_health_disabled():
     settings = Settings(health_enabled=False)
-    app, _ = build_app(HealthyExtension, settings=settings)
+    app, _, _ = build_app(HealthyExtension, settings=settings)
 
     with TestClient(app) as client:
         resp = client.get("/healthz")
@@ -92,7 +92,7 @@ async def test_health_disabled():
 
 async def test_health_custom_prefix():
     settings = Settings(health_prefix="/status")
-    app, _ = build_app(HealthyExtension, settings=settings)
+    app, _, _ = build_app(HealthyExtension, settings=settings)
 
     with TestClient(app) as client:
         assert client.get("/healthz").status_code == 404
@@ -102,7 +102,7 @@ async def test_health_custom_prefix():
 
 async def test_health_includes_version():
     settings = Settings(version="1.2.3")
-    app, _ = build_app(HealthyExtension, settings=settings)
+    app, _, _ = build_app(HealthyExtension, settings=settings)
 
     with TestClient(app) as client:
         resp = client.get("/healthz")

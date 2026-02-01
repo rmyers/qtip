@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from starlette.testclient import TestClient
 from svcs import Registry
 
-from cuneus import build_app, BaseExtension
+from cuneus import build_app, BaseExtension, Settings
 from cuneus.ext import health
 
 
@@ -37,7 +37,7 @@ class MyConflictState(BaseExtension):
 
 
 async def test_cuneus_defaults():
-    app, _ = build_app()
+    app, _, _ = build_app()
 
     @app.get("/some_path")
     async def something():
@@ -61,7 +61,7 @@ async def test_cuneus_defaults():
 
 
 async def test_cuneus_custom_extension():
-    app, _ = build_app(MyParamLessExtension, MyExtraSettings(debug=True))
+    app, _, _ = build_app(MyParamLessExtension, MyExtraSettings(debug=True))
 
     @app.get("/some_path")
     async def something(request: Request):
@@ -81,7 +81,7 @@ async def test_cuneus_custom_extension():
 
 
 async def test_cuneus_conflict():
-    app, _ = build_app(MyExtraSettings(debug=True), MyConflictState(False))
+    app, _, _ = build_app(MyExtraSettings(debug=True), MyConflictState(False))
 
     @app.get("/some_path")
     async def something():
@@ -103,9 +103,22 @@ def test_build_app_setup():
 
 
 def test_cli():
-    _, cli = build_app(MyParamLessExtension, MyExtraSettings(debug=True))
+    _, cli, _ = build_app(MyParamLessExtension, MyExtraSettings(debug=True))
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
 
     assert result.exit_code == 0
     assert "Usage:" in result.output
+
+
+def test_lifespan():
+    _, _, lifespan = build_app()
+
+    assert lifespan.registry is not None
+
+
+def test_settings_missing_pyproject(tmpdir, monkeypatch):
+    monkeypatch.chdir(tmpdir)
+    settings = Settings.get_project_root()
+    # by default if the file is not found we return the current dir
+    assert settings == tmpdir

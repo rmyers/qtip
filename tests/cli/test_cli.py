@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+
 TEST_APP_DIR = Path(__file__).parent / "testapp"
 
 
@@ -140,3 +141,5 @@ class TestCLIMissingConfig:
             result = cli_runner.invoke(cli, ["--help"])
 
             assert result.exit_code == 0
+            result = cli_runner.invoke(cli, ["dev"])
+            assert result.exit_code == 2

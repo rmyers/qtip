@@ -114,7 +114,7 @@ class TestExceptionExtension:
     def app(self, request):
         params = getattr(request, "param", {})
         settings = Settings(**params)
-        app, _ = build_app(settings=settings)
+        app, _, _ = build_app(settings=settings)
 
         @app.get("/app-error")
         async def raise_app_error():

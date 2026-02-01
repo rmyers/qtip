@@ -49,6 +49,6 @@ class ServerExtension(BaseExtension):
             app = import_from_string(settings.app_module)
 
             for route in app.routes:
-                if hasattr(route, "methods"):
+                if hasattr(route, "methods"):  # pragma: no branch
                     methods = ",".join(route.methods - {"HEAD", "OPTIONS"})
                     click.echo(f"{methods:8} {route.path}")

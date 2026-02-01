@@ -73,13 +73,11 @@ class Settings(CuneusBaseSettings):
         source = PyprojectTomlConfigSettingsSource(
             cls,
         )
-        if source.toml_file_path:
-            return source.toml_file_path.parent
-        return pathlib.Path.cwd()
+        return source.toml_file_path.parent
 
 
 def ensure_project_in_path() -> None:
     """Add project root to sys.path if not already present."""
     project_root = str(Settings.get_project_root())
-    if project_root not in sys.path:
+    if project_root not in sys.path:  # pragma: no branch
         sys.path.insert(0, project_root)
