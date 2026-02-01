@@ -21,6 +21,7 @@ from .exceptions import ExceptionExtension
 from .logging import LoggingExtension
 from .extensions import Extension, HasCLI, HasExceptionHandler, HasMiddleware, HasRoutes
 from ..ext.health import HealthExtension
+from ..ext.server import ServerExtension
 
 logger = structlog.stdlib.get_logger("cuneus")
 
@@ -30,6 +31,7 @@ DEFAULTS = (
     LoggingExtension,
     HealthExtension,
     ExceptionExtension,
+    ServerExtension,
 )
 
 
@@ -93,12 +95,6 @@ def build_app(
 
     all_extensions = [_instantiate_extension(ext, settings) for ext in all_inputs]
 
-    @click.group()
-    @click.pass_context
-    def app_cli(ctx: click.Context) -> None:
-        """Application CLI."""
-        ctx.ensure_object(dict)
-
     @svcs.fastapi.lifespan
     @asynccontextmanager
     async def lifespan(
@@ -121,6 +117,7 @@ def build_app(
 
     # Parse extensions for middleware and cli commands
     middleware: list[Middleware] = []
+    app_cli = click.Group()
 
     for ext in all_extensions:
         ext_name = ext.__class__.__name__

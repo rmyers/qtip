@@ -4,3 +4,4 @@ version = "0.0.1"
 
 [tool.cuneus]
 app_module = "my_app.main:app"
+cli_module = "my_app.main:cli"

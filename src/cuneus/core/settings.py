@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+import sys
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -72,7 +73,13 @@ class Settings(CuneusBaseSettings):
         source = PyprojectTomlConfigSettingsSource(
             cls,
         )
-        print(source)
         if source.toml_file_path:
             return source.toml_file_path.parent
         return pathlib.Path.cwd()
+
+
+def ensure_project_in_path() -> None:
+    """Add project root to sys.path if not already present."""
+    project_root = str(Settings.get_project_root())
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
