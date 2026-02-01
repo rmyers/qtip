@@ -67,6 +67,13 @@ class HasExceptionHandler(Protocol):
     def add_exception_handler(self, app: FastAPI) -> None: ...  # pragma: no cover
 
 
+@runtime_checkable
+class HasRoutes(Protocol):
+    """Extension that provides routes."""
+
+    def add_routes(self, app: FastAPI) -> None: ...  # pragma: no cover
+
+
 class BaseExtension:
     """
     Base class for extensions with explicit startup/shutdown hooks.

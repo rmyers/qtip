@@ -43,7 +43,7 @@ def configure_structlog(settings: Settings | None = None) -> None:
         term_width = shutil.get_terminal_size().columns
         pad_event = term_width - 36
         renderer: structlog.types.Processor = structlog.dev.ConsoleRenderer(
-            colors=True, pad_event=pad_event
+            colors=True, pad_event_to=pad_event
         )
 
     # Configure structlog

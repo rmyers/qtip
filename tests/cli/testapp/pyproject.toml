@@ -1,0 +1,9 @@
+[project]
+name = 'testapp'
+version = '0.0.1'
+
+
+[tool.cuneus]
+app_name = "Testy McTester"
+app_module = "main:app"
+cli_module = "main:cli"

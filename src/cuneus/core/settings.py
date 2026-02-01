@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import logging
+import pathlib
+import sys
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
     PyprojectTomlConfigSettingsSource,
     SettingsConfigDict,
 )
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_TOOL_NAME = "cuneus"
 
@@ -64,3 +63,21 @@ class Settings(CuneusBaseSettings):
     # health
     health_enabled: bool = True
     health_prefix: str = "/healthz"
+
+    @classmethod
+    def get_project_root(cls) -> pathlib.Path:
+        """
+        Get the project root by inspecting where pydantic-settings
+        found the pyproject.toml file.
+        """
+        source = PyprojectTomlConfigSettingsSource(
+            cls,
+        )
+        return source.toml_file_path.parent
+
+
+def ensure_project_in_path() -> None:
+    """Add project root to sys.path if not already present."""
+    project_root = str(Settings.get_project_root())
+    if project_root not in sys.path:  # pragma: no branch
+        sys.path.insert(0, project_root)

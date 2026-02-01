@@ -1,117 +1,31 @@
-"""Base CLI that cuneus provides."""
+"""Cuneus CLI entry point."""
 
-from pathlib import Path
-
-import importlib
-import sys
 from typing import Any, cast
 
 import click
 
-from .core.settings import Settings
+from .core.settings import Settings, ensure_project_in_path
+from .utils import import_from_string
 
 
-def import_from_string(import_str: str) -> Any:
-    """Import an object from a module:attribute string."""
-    # Ensure cwd is in path for local imports
-    cwd = str(Path.cwd())
-    if cwd not in sys.path:
-        sys.path.insert(0, cwd)
-
-    module_path, _, attr = import_str.partition(":")
-    if not attr:
-        raise ValueError(
-            f"module_path missing function {import_str} expecting 'module.path:name'"
-        )
-
-    module = importlib.import_module(module_path)
-    return getattr(module, attr)
-
-
-def get_user_cli() -> click.Group | None:
-    """Attempt to load user's CLI from config."""
-    config = Settings()
-
+def get_user_cli(config: Settings = Settings()) -> click.Group | None:
+    """Load CLI from config."""
     try:
         return cast(click.Group, import_from_string(config.cli_module))
     except (ImportError, AttributeError) as e:
         click.echo(
             f"Warning: Could not load CLI from {config.cli_module}: {e}", err=True
         )
-
-    return None
-
-
-@click.group()
-@click.pass_context
-def cli(ctx: click.Context) -> None:  # pragma: no cover
-    """Cuneus CLI - FastAPI application framework."""
-    ctx.ensure_object(dict)
-
-
-@cli.command()
-@click.option("--host", default="0.0.0.0", help="Bind host")
-@click.option("--port", default=8000, type=int, help="Bind port")
-def dev(host: str, port: int) -> None:
-    """Run the application server."""
-    import uvicorn
-
-    config = Settings()
-
-    uvicorn.run(
-        config.app_module,
-        host=host,
-        port=port,
-        reload=True,
-        log_config=None,
-        server_header=False,
-    )
-
-
-@cli.command()
-@click.option("--host", default="0.0.0.0", help="Bind host")
-@click.option("--port", default=8000, type=int, help="Bind port")
-@click.option("--workers", default=1, type=int, help="Number of workers")
-def prod(host: str, port: int, workers: int) -> None:
-    """Run the application server."""
-    import uvicorn
-
-    config = Settings()
-
-    uvicorn.run(
-        config.app_module,
-        host=host,
-        port=port,
-        workers=workers,
-        log_config=None,
-        server_header=False,
-    )
-
-
-@cli.command()
-def routes() -> None:
-    """List all registered routes."""
-    config = Settings()
-    app = import_from_string(config.app_module)
-
-    for route in app.routes:
-        if hasattr(route, "methods"):  # pragma: no branch
-            methods = ",".join(route.methods - {"HEAD", "OPTIONS"})
-            click.echo(f"{methods:8} {route.path}")
+        return None
 
 
 class CuneusCLI(click.Group):
-    """Merges base cuneus commands with user's app CLI."""
+    """Delegates to the app's CLI from config."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._user_cli: click.Group | None = None
         self._user_cli_loaded = False
-
-        # Register base commands directly
-        self.add_command(dev)
-        self.add_command(prod)
-        self.add_command(routes)
 
     @property
     def user_cli(self) -> click.Group | None:
@@ -121,21 +35,17 @@ class CuneusCLI(click.Group):
         return self._user_cli
 
     def list_commands(self, ctx: click.Context) -> list[str]:
-        commands = set(super().list_commands(ctx))
         if self.user_cli:
-            commands.update(self.user_cli.list_commands(ctx))
-        return sorted(commands)
+            return self.user_cli.list_commands(ctx)
+        return []
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
-        # User CLI takes priority
         if self.user_cli:
-            cmd = self.user_cli.get_command(ctx, cmd_name)
-            if cmd:
-                return cmd
-        return super().get_command(ctx, cmd_name)
+            return self.user_cli.get_command(ctx, cmd_name)
+        return None
 
 
-# This is the actual entry point
+ensure_project_in_path()
 main = CuneusCLI(help="Cuneus CLI - FastAPI application framework")
 
 
