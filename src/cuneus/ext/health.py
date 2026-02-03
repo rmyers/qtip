@@ -37,9 +37,7 @@ class HealthResponse(BaseModel):
 
 
 @health_router.get("", response_model=HealthResponse)
-async def health(
-    services: svcs.fastapi.DepContainer, request: Request
-) -> HealthResponse:
+async def health(services: svcs.fastapi.DepContainer, request: Request) -> HealthResponse:
     """Full health check - pings all registered services."""
     pings = services.get_pings()
 

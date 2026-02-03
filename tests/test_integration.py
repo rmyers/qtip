@@ -11,13 +11,11 @@ from cuneus.ext import health
 
 
 class MyParamLessExtension(BaseExtension):
-
     def __init__(self):
         pass
 
 
 class MyExtraSettings(BaseExtension):
-
     def __init__(self, debug: bool):
         self.debug = debug
 
@@ -27,7 +25,6 @@ class MyExtraSettings(BaseExtension):
 
 
 class MyConflictState(BaseExtension):
-
     def __init__(self, debug: bool):
         self.debug = debug
 

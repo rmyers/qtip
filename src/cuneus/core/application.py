@@ -41,9 +41,7 @@ class ExtensionConflictError(Exception):
     pass
 
 
-def _instantiate_extension(
-    ext: ExtensionInput, settings: Settings | None = None
-) -> Extension:
+def _instantiate_extension(ext: ExtensionInput, settings: Settings | None = None) -> Extension:
     if isinstance(ext, type) or callable(ext):
         try:
             return ext(settings=settings)
@@ -97,9 +95,7 @@ def build_app(
 
     @svcs.fastapi.lifespan
     @asynccontextmanager
-    async def lifespan(
-        app: FastAPI, registry: svcs.Registry
-    ) -> AsyncIterator[dict[str, Any]]:
+    async def lifespan(app: FastAPI, registry: svcs.Registry) -> AsyncIterator[dict[str, Any]]:
         async with AsyncExitStack() as stack:
             state: dict[str, Any] = {}
 

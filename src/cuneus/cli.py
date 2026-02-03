@@ -13,9 +13,7 @@ def get_user_cli(config: Settings = Settings()) -> click.Group | None:
     try:
         return cast(click.Group, import_from_string(config.cli_module))
     except (ImportError, AttributeError) as e:
-        click.echo(
-            f"Warning: Could not load CLI from {config.cli_module}: {e}", err=True
-        )
+        click.echo(f"Warning: Could not load CLI from {config.cli_module}: {e}", err=True)
         return None
 
 

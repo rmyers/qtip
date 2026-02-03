@@ -81,9 +81,7 @@ class TestBuiltInCommands:
         from cuneus.cli import CuneusCLI
 
         cli = CuneusCLI()
-        result = cli_runner.invoke(
-            cli, ["dev", "--host", "127.0.0.1", "--port", "9000"]
-        )
+        result = cli_runner.invoke(cli, ["dev", "--host", "127.0.0.1", "--port", "9000"])
 
         assert result.exit_code == 0
         mock_run.assert_called_once()
@@ -107,9 +105,7 @@ class TestBuiltInCommands:
 
 
 class TestCLIFromSubdirectory:
-    def test_discovers_pyproject_from_subdirectory(
-        self, cli_runner: CliRunner, test_app
-    ):
+    def test_discovers_pyproject_from_subdirectory(self, cli_runner: CliRunner, test_app):
         import os
 
         subdir = test_app / "src" / "nested"
