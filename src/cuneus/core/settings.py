@@ -39,7 +39,6 @@ class CuneusBaseSettings(BaseSettings):
 
 
 class Settings(CuneusBaseSettings):
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

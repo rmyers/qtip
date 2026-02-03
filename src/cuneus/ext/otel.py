@@ -1,16 +1,26 @@
 # cuneus/ext/otel.py
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Callable
 
+import structlog
 import svcs
 from fastapi import FastAPI, Request, Response
 from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from ..core.extensions import BaseExtension, HasMiddleware
+from ..core.settings import CuneusBaseSettings, DEFAULT_TOOL_NAME
+from ..dependencies import Dependency, check_dependencies
+
+check_dependencies(
+    "cuneus.ext.otel",
+    Dependency("opentelemetry.sdk", "opentelemetry-sdk"),
+    Dependency("opentelemetry.trace", "opentelemetry-api"),
+)
 
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider, SpanProcessor
@@ -21,10 +31,7 @@ from opentelemetry.trace import Tracer, Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.propagate import set_global_textmap
 
-from ..core.extensions import BaseExtension, HasMiddleware
-from ..core.settings import CuneusBaseSettings, DEFAULT_TOOL_NAME
-
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class OTelSettings(CuneusBaseSettings):
@@ -206,9 +213,6 @@ class OTelExtension(BaseExtension, HasMiddleware):
             if enabled:
                 self._try_instrument(module, class_name)
 
-        if self.settings.instrument_logging:
-            self._try_instrument_logging()
-
     def _try_instrument(self, module: str, class_name: str) -> None:
         try:
             import importlib
@@ -222,18 +226,9 @@ class OTelExtension(BaseExtension, HasMiddleware):
         except Exception as e:
             logger.warning(f"{class_name} instrumentation failed: {e}")
 
-    def _try_instrument_logging(self) -> None:
-        try:
-            from opentelemetry.instrumentation.logging import LoggingInstrumentor
-
-            LoggingInstrumentor().instrument(set_logging_format=True)
-            logger.debug("Logging auto-instrumentation enabled")
-        except ImportError:
-            logger.debug("Logging instrumentation not available")
-
 
 class OTelMiddleware(BaseHTTPMiddleware):
-    """Middleware to enrich spans with request context."""
+    """Middleware to enrich spans and logs with trace context."""
 
     def __init__(self, app, excluded_paths: set[str] | None = None):
         super().__init__(app)
@@ -244,9 +239,17 @@ class OTelMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         span = trace.get_current_span()
+        ctx = span.get_span_context()
+
+        # Bind trace context to structlog for this request
+        if ctx.is_valid:
+            structlog.contextvars.bind_contextvars(
+                trace_id=format(ctx.trace_id, "032x"),
+                span_id=format(ctx.span_id, "016x"),
+            )
 
         if span.is_recording():
-            span.set_attribute("http.client_ip", _get_client_ip(request))
+            # span.set_attribute("http.client_ip", _get_client_ip(request))
             span.set_attribute("http.user_agent", request.headers.get("user-agent", ""))
 
             if request.url.query:
@@ -272,9 +275,5 @@ class OTelMiddleware(BaseHTTPMiddleware):
                 span.record_exception(exc)
             raise
 
-
-def _get_client_ip(request: Request) -> str:
-    """Extract client IP, handling proxies."""
-    if forwarded := request.headers.get("x-forwarded-for"):
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else ""
+        finally:
+            structlog.contextvars.unbind_contextvars("trace_id", "span_id")

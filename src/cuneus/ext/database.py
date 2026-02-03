@@ -12,6 +12,16 @@ from fastapi import FastAPI
 from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import SettingsConfigDict
 from structlog.stdlib import get_logger
+
+from ..core.extensions import BaseExtension, HasCLI
+from ..core.settings import CuneusBaseSettings, DEFAULT_TOOL_NAME
+from ..dependencies import Dependency, check_dependencies
+
+check_dependencies(
+    "cuneus.ext.database",
+    Dependency("sqlalchemy"),
+)
+
 from sqlalchemy import URL, make_url, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -19,9 +29,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-
-from ..core.extensions import BaseExtension, HasCLI
-from ..core.settings import CuneusBaseSettings, DEFAULT_TOOL_NAME
 
 logger = get_logger(__name__)
 
@@ -269,16 +276,3 @@ def _run_alembic_cmd(
             command.history(cfg)
         case _:
             raise click.ClickException(f"Unknown command: {cmd}")
-
-
-def _redact_url(url: str) -> str:
-    """Redact password from database URL for logging."""
-    from urllib.parse import urlparse, urlunparse
-
-    parsed = urlparse(url)
-    if parsed.password:
-        netloc = f"{parsed.username}:***@{parsed.hostname}"
-        if parsed.port:
-            netloc += f":{parsed.port}"
-        parsed = parsed._replace(netloc=netloc)
-    return urlunparse(parsed)
