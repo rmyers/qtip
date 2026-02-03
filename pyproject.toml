@@ -1,6 +1,6 @@
 [project]
 name = "cuneus"
-version = "0.2.9"
+version = "0.2.10"
 description = "ASGI application wrapper"
 readme = "README.md"
 authors = [{ name = "Robert Myers", email = "robert@julython.org" }]
@@ -15,11 +15,12 @@ dependencies = [
     # Core dependencies we build on
     "svcs>=24.1.0",
     "structlog>=24.1.0",
-    "aiosqlite[dev]>=0.22.1",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "asgi-lifespan>=2.1.0",
+    "aiosqlite[dev]>=0.22.1",
     "cuneus[all]",
     "opentelemetry-sdk",
     "opentelemetry-api",
@@ -29,7 +30,6 @@ dev = [
     "pytest-cov>=4.0",
     "pytest-mock",
     "httpx>=0.27",
-    "asgi-lifespan>=2.1.0",
     "ruff>=0.3",
     "mypy>=1.8",
 ]

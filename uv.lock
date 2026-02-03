@@ -412,10 +412,9 @@ toml = [
 
 [[package]]
 name = "cuneus"
-version = "0.2.9"
+version = "0.2.10"
 source = { editable = "." }
 dependencies = [
-    { name = "aiosqlite", extra = ["dev"] },
     { name = "click" },
     { name = "fastapi" },
     { name = "pydantic" },
@@ -438,6 +437,7 @@ database = [
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 dev = [
+    { name = "aiosqlite", extra = ["dev"] },
     { name = "alembic" },
     { name = "asgi-lifespan" },
     { name = "asyncpg" },
@@ -460,7 +460,7 @@ redis = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", extras = ["dev"], specifier = ">=0.22.1" },
+    { name = "aiosqlite", extras = ["dev"], marker = "extra == 'dev'", specifier = ">=0.22.1" },
     { name = "alembic", marker = "extra == 'database'", specifier = ">=1.13.0" },
     { name = "asgi-lifespan", marker = "extra == 'dev'", specifier = ">=2.1.0" },
     { name = "asyncpg", marker = "extra == 'database'", specifier = ">=0.29.0" },
