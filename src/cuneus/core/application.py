@@ -95,6 +95,10 @@ def build_app(
 
     settings = settings or Settings()
 
+    # Grab defaults for a few FastAPI args:
+    debug: bool = fastapi_kwargs.pop("debug", settings.debug)
+    version: str = fastapi_kwargs.pop("version", settings.version)
+
     all_inputs = (*DEFAULTS, *extensions) if include_defaults else extensions
 
     all_extensions = [_instantiate_extension(ext, settings) for ext in all_inputs]
@@ -132,7 +136,13 @@ def build_app(
             logger.debug(f"Adding cli commands from {ext_name}")
             ext.register_cli(app_cli)
 
-    app = FastAPI(lifespan=lifespan, middleware=middleware, **fastapi_kwargs)
+    app = FastAPI(
+        debug=debug,
+        version=version,
+        lifespan=lifespan,
+        middleware=middleware,
+        **fastapi_kwargs,
+    )
 
     # Preform post app initialization extension customization
     for ext in all_extensions:
