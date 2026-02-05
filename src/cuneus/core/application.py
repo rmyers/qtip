@@ -4,9 +4,6 @@ cuneus - The wedge stone that locks the arch together.
 Lightweight lifespan management for FastAPI applications.
 """
 
-from __future__ import annotations
-
-import inspect
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, AsyncIterator, Callable
 
@@ -41,7 +38,9 @@ class ExtensionConflictError(Exception):
     pass
 
 
-def _instantiate_extension(ext: ExtensionInput, settings: Settings | None = None) -> Extension:
+def _instantiate_extension(
+    ext: ExtensionInput, settings: Settings | None = None
+) -> Extension:
     if isinstance(ext, type) or callable(ext):
         try:
             return ext(settings=settings)
@@ -67,13 +66,13 @@ def build_app(
         from myapp.extensions import DatabaseExtension
 
         settings = Settings()
-        app, cli = build_app(
+        app, cli, lifespan = build_app(
             SettingsExtension(settings),
             DatabaseExtension(settings),
             title="Args are passed to FastAPI",
         )
 
-        __all__ = ["app", "cli"]
+        __all__ = ["app", "cli", "lifespan"]
 
     Testing:
         from myapp import app, lifespan
@@ -95,7 +94,9 @@ def build_app(
 
     @svcs.fastapi.lifespan
     @asynccontextmanager
-    async def lifespan(app: FastAPI, registry: svcs.Registry) -> AsyncIterator[dict[str, Any]]:
+    async def lifespan(
+        app: FastAPI, registry: svcs.Registry
+    ) -> AsyncIterator[dict[str, Any]]:
         async with AsyncExitStack() as stack:
             state: dict[str, Any] = {}
 

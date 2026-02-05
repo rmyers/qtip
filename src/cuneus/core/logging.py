@@ -8,11 +8,10 @@ import logging
 import shutil
 import time
 import uuid
-from typing import Any, Awaitable, Callable
+from typing import Awaitable, Callable
 
 import structlog
-import svcs
-from fastapi import FastAPI, Request, Response
+from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware import Middleware
 from starlette.types import ASGIApp
@@ -33,7 +32,6 @@ def configure_structlog(settings: Settings | None = None) -> None:
         structlog.stdlib.add_logger_name,
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.TimeStamper(fmt="iso", utc=True),
-        structlog.processors.StackInfoRenderer(),
         structlog.processors.UnicodeDecoder(),
     ]
 
@@ -76,6 +74,7 @@ def configure_structlog(settings: Settings | None = None) -> None:
 
     # Quiet noisy loggers
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("svcs").setLevel(logging.INFO)
 
 
 class LoggingExtension(BaseExtension):
