@@ -50,14 +50,17 @@ class Settings(CuneusBaseSettings):
     app_name: str = "app"
     app_module: str = "app.main:app"
     cli_module: str = "app.main:cli"
+
+    # FastAPI settings
     debug: bool = False
-    version: str | None = None
+    version: str = "0.1.0"
 
     # logging
     log_level: str = "INFO"
     log_json: bool = False
     log_server_errors: bool = True
     request_id_header: str = "X-Request-ID"
+    handle_unknown_errors: bool = True
 
     # health
     health_enabled: bool = True
