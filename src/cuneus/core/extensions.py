@@ -74,6 +74,13 @@ class HasRoutes(Protocol):
     def add_routes(self, app: FastAPI) -> None: ...  # pragma: no cover
 
 
+@runtime_checkable
+class HasPostAppHook(Protocol):
+    """Extension that modifies app after creation."""
+
+    def post_app_hook(self, app: FastAPI) -> None: ...  # pragma: no cover
+
+
 class BaseExtension:
     """
     Base class for extensions with explicit startup/shutdown hooks.

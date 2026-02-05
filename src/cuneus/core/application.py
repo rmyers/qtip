@@ -16,7 +16,14 @@ from starlette.middleware import Middleware
 from .settings import Settings
 from .exceptions import ExceptionExtension
 from .logging import LoggingExtension
-from .extensions import Extension, HasCLI, HasExceptionHandler, HasMiddleware, HasRoutes
+from .extensions import (
+    Extension,
+    HasCLI,
+    HasExceptionHandler,
+    HasMiddleware,
+    HasPostAppHook,
+    HasRoutes,
+)
 from ..ext.health import HealthExtension
 from ..ext.server import ServerExtension
 
@@ -130,6 +137,9 @@ def build_app(
     # Preform post app initialization extension customization
     for ext in all_extensions:
         ext_name = ext.__class__.__name__
+        if isinstance(ext, HasPostAppHook):
+            logger.debug(f"Running post app hook from {ext_name}")
+            ext.post_app_hook(app)
         if isinstance(ext, HasExceptionHandler):
             logger.debug(f"Loading exception handlers from {ext_name}")
             ext.add_exception_handler(app)

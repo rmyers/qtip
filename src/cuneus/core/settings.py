@@ -58,6 +58,7 @@ class Settings(CuneusBaseSettings):
     log_json: bool = False
     log_server_errors: bool = True
     request_id_header: str = "X-Request-ID"
+    handle_unknown_errors: bool = True
 
     # health
     health_enabled: bool = True
