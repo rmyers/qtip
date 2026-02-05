@@ -1,8 +1,7 @@
-# cuneus/ext/otel.py
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Callable
+import importlib
+from typing import Any, Callable
 
 import structlog
 import svcs
@@ -116,14 +115,10 @@ class OTelExtension(BaseExtension, HasMiddleware):
         self._span_exporters = span_exporters or []
         self._span_processors = span_processors or []
 
-    @asynccontextmanager
-    async def register(
-        self, registry: svcs.Registry, app: FastAPI
-    ) -> AsyncIterator[dict[str, Any]]:
+    async def startup(self, registry: svcs.Registry, app: FastAPI) -> dict[str, Any]:
         if not self.settings.enabled:
             logger.info("OpenTelemetry disabled")
-            yield {}
-            return
+            return {}
 
         resource = Resource.create(
             {
@@ -166,12 +161,12 @@ class OTelExtension(BaseExtension, HasMiddleware):
             metrics.set_meter_provider(meter_provider)
             registry.register_value(MeterProvider, meter_provider)
 
-        try:
-            yield {"tracer_provider": self._tracer_provider}
-        finally:
-            if self._tracer_provider:
-                self._tracer_provider.shutdown()
-                logger.info("OpenTelemetry shutdown")
+        return {"tracer_provider": self._tracer_provider}
+
+    async def shutdown(self, app: FastAPI) -> None:
+        if self._tracer_provider:
+            self._tracer_provider.shutdown()
+            logger.info("OpenTelemetry shutdown")
 
     def middleware(self) -> list[Middleware]:
         if not self.settings.enabled or not self.settings.traces_enabled:
@@ -215,8 +210,6 @@ class OTelExtension(BaseExtension, HasMiddleware):
 
     def _try_instrument(self, module: str, class_name: str) -> None:
         try:
-            import importlib
-
             mod = importlib.import_module(module)
             instrumentor = getattr(mod, class_name)()
             instrumentor.instrument()
