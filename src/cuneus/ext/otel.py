@@ -104,6 +104,7 @@ class OTelExtension(BaseExtension, HasMiddleware):
     """
 
     _tracer_provider: TracerProvider
+    _meter_provider: MeterProvider | None = None
 
     def __init__(
         self,
@@ -146,7 +147,7 @@ class OTelExtension(BaseExtension, HasMiddleware):
                 self._tracer_provider.get_tracer(self.settings.service_name),
             )
 
-            self._setup_auto_instrumentation()
+            self._setup_auto_instrumentation(app)
 
             logger.info(
                 "OpenTelemetry tracing started",
@@ -159,7 +160,8 @@ class OTelExtension(BaseExtension, HasMiddleware):
         if self.settings.metrics_enabled:
             meter_provider = MeterProvider(resource=resource)
             metrics.set_meter_provider(meter_provider)
-            registry.register_value(MeterProvider, meter_provider)
+            self._meter_provider = meter_provider
+            registry.register_value(MeterProvider, self._meter_provider)
 
         return {"tracer_provider": self._tracer_provider}
 
@@ -179,14 +181,9 @@ class OTelExtension(BaseExtension, HasMiddleware):
             )
         ]
 
-    def _setup_auto_instrumentation(self) -> None:
+    def _setup_auto_instrumentation(self, app: FastAPI) -> None:
         """Setup auto-instrumentation based on settings."""
         instrumentors = [
-            (
-                self.settings.instrument_fastapi,
-                "opentelemetry.instrumentation.fastapi",
-                "FastAPIInstrumentor",
-            ),
             (
                 self.settings.instrument_sqlalchemy,
                 "opentelemetry.instrumentation.sqlalchemy",
@@ -207,6 +204,17 @@ class OTelExtension(BaseExtension, HasMiddleware):
         for enabled, module, class_name in instrumentors:
             if enabled:
                 self._try_instrument(module, class_name)
+
+        if self.settings.instrument_fastapi:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+            inst = FastAPIInstrumentor()
+            inst.instrument_app(
+                app,
+                tracer_provider=self._tracer_provider,
+                meter_provider=self._meter_provider,
+            )
+            logger.debug("FastAPIInstrumentor auto-instrumentation enabled")
 
     def _try_instrument(self, module: str, class_name: str) -> None:
         try:
