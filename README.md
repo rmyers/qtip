@@ -2,45 +2,146 @@
 
 > _The wedge stone that locks the arch together_
 
-**cuneus** is a lightweight lifespan manager for FastAPI applications. It provides a simple pattern for composing extensions that handle startup/shutdown and service registration.
+**cuneus** is a lightweight lifespan manager for FastAPI applications. It provides a simple pattern for composing extensions that handle startup/shutdown, service registration, and CLI commands.
 
 The name comes from Roman architecture: a _cuneus_ is the wedge-shaped stone in a Roman arch. Each stone is simple on its own, but together they lock under pressure to create structures that have stood for millennia—no rebar required.
 
 ## Installation
 
 ```bash
-uv add cuneus
+pip install cuneus
 ```
 
-or
+With optional dependencies:
 
 ```bash
-pip install cuneus
+pip install cuneus[database]  # SQLAlchemy, asyncpg, alembic
+pip install cuneus[all]       # Everything
 ```
 
 ## Quick Start
 
 ```python
 # app/main.py
-from fastapi import FastAPI
 from cuneus import build_app, Settings
 
-from myapp.extensions import DatabaseExtension
-
-class MyAppSettings(Settings):
-    my_mood: str = "extatic"
-
-app, cli = build_app(
-    DatabaseExtension,
-    settings=MyAppSettings(),
+app, cli, lifespan = build_app(
+    settings=Settings(),
+    title="My App",
 )
 
-app.include_router(my_router)
+@app.get("/")
+async def hello():
+    return {"message": "Hello, World!"}
 
-__all__ = ["app", "cli"]
+__all__ = ["app", "cli", "lifespan"]
 ```
 
-That's it. Extensions handle their lifecycle, registration, and middleware.
+Run with:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Or use the CLI:
+
+```bash
+cuneus run     # Start the server
+cuneus --help  # Show available commands
+```
+
+## What You Get
+
+Out of the box, `build_app()` includes:
+
+- **Structured logging** via structlog with request context
+- **Health endpoints** at `/healthz`, `/healthz/live`, `/healthz/ready`
+- **Request ID** tracking via `X-Request-ID` header
+- **Exception handling** with proper error responses
+- **CLI** with `run` command and extension hooks
+
+## Database Extension
+
+```python
+from cuneus import build_app
+from cuneus.ext.database import DatabaseExtension
+
+app, cli, lifespan = build_app(
+    DatabaseExtension(),
+)
+```
+
+Configuration via environment or `pyproject.toml`:
+
+```bash
+DATABASE_DRIVER=postgresql+asyncpg
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=myapp
+DATABASE_USERNAME=myapp
+DATABASE_PASSWORD=secret
+```
+
+```toml
+# pyproject.toml
+[tool.cuneus.database]
+driver = "postgresql+asyncpg"
+host = "localhost"
+name = "myapp"
+```
+
+CLI commands:
+
+```bash
+cuneus db upgrade          # Run migrations
+cuneus db downgrade        # Rollback one migration
+cuneus db revision -m "x"  # Create new migration
+cuneus db current          # Show current revision
+cuneus db check            # Test database connectivity
+```
+
+Use in routes:
+
+```python
+from sqlalchemy.ext.asyncio import AsyncSession
+from svcs.fastapi import DepContainer
+
+@app.get("/users")
+async def get_users(container: DepContainer):
+    session = await container.aget(AsyncSession)
+    result = await session.execute(select(User))
+    return result.scalars().all()
+```
+
+## OpenTelemetry Extension
+
+```python
+from cuneus import build_app
+from cuneus.ext.otel import OTelExtension, OTelSettings
+
+app, cli, lifespan = build_app(
+    OTelExtension(
+        settings=OTelSettings(service_name="my-service"),
+        span_exporters=[your_exporter],
+    ),
+)
+```
+
+Configuration:
+
+```bash
+OTEL_SERVICE_NAME=my-service
+OTEL_ENVIRONMENT=production
+OTEL_INSTRUMENT_FASTAPI=true
+OTEL_INSTRUMENT_SQLALCHEMY=true
+```
+
+Features:
+
+- Automatic FastAPI/Starlette instrumentation
+- Auto-instrumentation for SQLAlchemy, HTTPX, Redis
+- W3C Trace Context propagation (`traceparent` header)
+- Trace context in structlog (logs include `trace_id`)
 
 ## Creating Extensions
 
@@ -51,141 +152,105 @@ from cuneus import BaseExtension
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 import svcs
 
-class DatabaseExtension(BaseExtension):
-    def __init__(self, settings):
-        self.settings = settings
-        self.engine: AsyncEngine | None = None
-
+class MyExtension(BaseExtension):
     async def startup(self, registry: svcs.Registry, app: FastAPI) -> dict[str, Any]:
-        self.engine = create_async_engine(self.settings.database_url)
-
-        # Register with svcs for dependency injection
-        registry.register_value(AsyncEngine, self.engine)
-
-        # Add routes
-        app.include_router(health_router, prefix="/health")
-
-        # Add exception handlers
-        app.add_exception_handler(DBError, self.handle_db_error)
-
-        # Return state (accessible via request.state.db)
-        return {"db": self.engine}
+        engine = create_async_engine(self.settings.database_url)
+        registry.register_value(AsyncEngine, engine)
+        return {"engine": engine}
 
     async def shutdown(self, app: FastAPI) -> None:
-        if self.engine:
-            await self.engine.dispose()
+        # Cleanup
+        pass
 
     def middleware(self) -> list[Middleware]:
-        return [Middleware(DatabaseLoggingMiddleware, level=INFO)]
+        return [Middleware(MyMiddleware)]
 
-    def register_cli(self, app_cli: click.Group) -> None:
-        @app_cli.command()
-        @click.option("--workers", default=1, type=int, help="Number of workers")
-        def blow_up_db(workers: int): ...
+    def register_cli(self, cli_group: click.Group) -> None:
+        @cli_group.command()
+        def my_command():
+            click.echo("Hello!")
 ```
 
-For full control, override `register()` directly:
+### Extension Protocols
 
-```python
-from contextlib import asynccontextmanager
+Extensions can implement multiple protocols:
 
-class RedisExtension(BaseExtension):
-    def __init__(self, settings):
-        self.settings = settings
-
-    @asynccontextmanager
-    async def register(self, registry: svcs.Registry, app: FastAPI):
-        redis = await aioredis.from_url(self.settings.redis_url)
-        registry.register_value(Redis, redis)
-
-        try:
-            yield {"redis": redis}
-        finally:
-            await redis.close()
-```
+| Protocol              | Method                    | Purpose                       |
+| --------------------- | ------------------------- | ----------------------------- |
+| `Extension`           | `register()`              | Lifecycle management          |
+| `HasMiddleware`       | `middleware()`            | Add middleware                |
+| `HasCLI`              | `register_cli()`          | Add CLI commands              |
+| `HasRoutes`           | `add_routes()`            | Add routes after app creation |
+| `HasExceptionHandler` | `add_exception_handler()` | Add exception handlers        |
+| `HasPostAppHook`      | `post_app_hook()`         | Modify app after creation     |
 
 ## Testing
 
 The lifespan exposes a `.registry` attribute for test overrides:
 
 ```python
-# test_app.py
-from unittest.mock import Mock
 from starlette.testclient import TestClient
-from myapp import app, lifespan, Database
+from myapp import app, lifespan
 
-def test_db_error_handling():
+def test_with_mock():
     with TestClient(app) as client:
-        # Override after app startup
+        # Override a service
         mock_db = Mock(spec=Database)
-        mock_db.get_user.side_effect = Exception("boom")
         lifespan.registry.register_value(Database, mock_db)
 
-        resp = client.get("/users/42")
-        assert resp.status_code == 500
+        resp = client.get("/users")
+        assert resp.status_code == 200
 ```
 
 ## Settings
 
-cuneus includes a base `Settings` class that loads from multiple sources:
+cuneus uses pydantic-settings with multiple sources:
 
 ```python
 from cuneus import Settings
 
 class AppSettings(Settings):
     database_url: str = "sqlite+aiosqlite:///./app.db"
-    redis_url: str = "redis://localhost"
 
-    model_config = SettingsConfigDict(env_prefix="APP_")
+    model_config = SettingsConfigDict(
+        env_prefix="APP_",
+        pyproject_toml_table_header=("tool", "myapp"),
+    )
 ```
 
 Load priority (highest wins):
 
 1. Environment variables
 2. `.env` file
-3. `pyproject.toml` under `[tool.cuneus]`
+3. `pyproject.toml`
 
 ## API Reference
 
-### `build_lifespan(settings, *extensions)`
+### `build_app(*extensions, settings, **fastapi_kwargs)`
 
-Creates a lifespan context manager for FastAPI.
+Build a FastAPI application with extensions.
 
-- `settings`: Your settings instance (subclass of `Settings`)
-- `*extensions`: Extension instances to register
-
-Returns a lifespan with a `.registry` attribute for testing.
+Returns: `(app, cli, lifespan)`
 
 ### `BaseExtension`
 
-Base class with `startup()` and `shutdown()` hooks:
+Base class with hooks:
 
-- `startup(registry, app) -> dict[str, Any]`: Setup resources, return state
-- `shutdown(app) -> None`: Cleanup resources
-- `middleware() -> list[Middleware]`: Optional middleware to configure
-- `register_cli(group) -> None`: Optional hook to add click commands
+- `startup(registry, app) -> dict` — Setup resources
+- `shutdown(app) -> None` — Cleanup resources
+- `middleware() -> list[Middleware]` — Optional
+- `register_cli(group) -> None` — Optional
 
-### `Extension` Protocol
+### Built-in Extensions
 
-For full control, implement the protocol directly:
-
-```python
-def register(self, registry: svcs.Registry, app: FastAPI) -> AsyncContextManager[dict[str, Any]]
-```
-
-### Accessors
-
-- `aget(request, *types)` - Async get services from svcs
-- `get(request, *types)` - Sync get services from svcs
-- `get_settings(request)` - Get settings from request state
-- `get_request_id(request)` - Get request ID from request state
-
-## Why cuneus?
-
-- **Simple** — one function, `build_app()`, does what you need
-- **Testable** — registry exposed via `lifespan.registry`
-- **Composable** — extensions are just async context managers
-- **Built on svcs** — proper dependency injection, not global state
+| Extension            | Purpose                             |
+| -------------------- | ----------------------------------- |
+| `LoggingExtension`   | Structured logging, request context |
+| `HealthExtension`    | Health check endpoints              |
+| `ExceptionExtension` | Error handling                      |
+| `ServerExtension`    | `run` CLI command                   |
+| `DatabaseExtension`  | SQLAlchemy + Alembic                |
+| `OTelExtension`      | OpenTelemetry tracing               |
 
 ## License
 
