@@ -4,6 +4,7 @@ Structured logging with structlog and request context.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import shutil
 import time
@@ -28,9 +29,17 @@ def _get_suppress_modules():
     This helps reduce the amount of noise that we get from the traceback
     """
     modules = []
-    for name in ["starlette", "fastapi", "asyncio", "anyio", "uvicorn"]:
+    for name in [
+        "starlette",
+        "fastapi",
+        "asyncio",
+        "anyio",
+        "uvicorn",
+        "opentelemetry.instrumentation.fastapi",
+        "opentelemetry.instrumentation.asgi",
+    ]:
         try:
-            modules.append(__import__(name))
+            modules.append(importlib.import_module(name))
         except ImportError:
             pass
     return modules
@@ -126,7 +135,7 @@ def configure_structlog(settings: Settings | None = None) -> None:
     root_logger.setLevel(log_settings.log_level.upper())
 
     # Quiet noisy loggers
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.CRITICAL)
     logging.getLogger("svcs").setLevel(logging.INFO)
 
 
