@@ -22,12 +22,35 @@ from .settings import Settings
 logger = structlog.stdlib.get_logger("cuneus")
 
 
+def add_otel_context(
+    logger: structlog.types.WrappedLogger,
+    method_name: str,
+    event_dict: structlog.types.EventDict,
+) -> structlog.types.EventDict:
+    """Add trace context at log time, replace request_id if present."""
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+
+        if ctx.is_valid:
+            event_dict["trace_id"] = format(ctx.trace_id, "032x")[:12]
+            # Remove request_id - trace_id is the correlation now
+            event_dict.pop("request_id", None)
+    except ImportError:
+        pass
+
+    return event_dict
+
+
 def configure_structlog(settings: Settings | None = None) -> None:
     log_settings = settings or Settings()
 
     # Shared processors
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
+        add_otel_context,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.PositionalArgumentsFormatter(),

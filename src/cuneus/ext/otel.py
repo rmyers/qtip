@@ -232,24 +232,15 @@ class OTelMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         span = trace.get_current_span()
-        ctx = span.get_span_context()
-
-        # Bind trace context to structlog for this request
-        if ctx.is_valid:
-            structlog.contextvars.bind_contextvars(
-                trace_id=format(ctx.trace_id, "032x"),
-                span_id=format(ctx.span_id, "016x"),
-            )
 
         if span.is_recording():
-            # span.set_attribute("http.client_ip", _get_client_ip(request))
-            span.set_attribute("http.user_agent", request.headers.get("user-agent", ""))
+            # Store incoming X-Request-ID as attribute for legacy correlation
+            if incoming_id := getattr(request.state, "request_id", None):
+                span.set_attribute("http.request_id", incoming_id)
 
+            span.set_attribute("http.user_agent", request.headers.get("user-agent", ""))
             if request.url.query:
                 span.set_attribute("http.query_string", str(request.url.query))
-
-            if request_id := request.headers.get("x-request-id"):
-                span.set_attribute("http.request_id", request_id)
 
         try:
             response = await call_next(request)
@@ -265,8 +256,4 @@ class OTelMiddleware(BaseHTTPMiddleware):
         except Exception as exc:
             if span.is_recording():
                 span.set_status(Status(StatusCode.ERROR, str(exc)))
-                span.record_exception(exc)
             raise
-
-        finally:
-            structlog.contextvars.unbind_contextvars("trace_id", "span_id")
