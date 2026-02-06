@@ -8,7 +8,7 @@ import logging
 import shutil
 import time
 import uuid
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
 import structlog
 from fastapi import Request, Response
@@ -20,6 +20,34 @@ from .extensions import BaseExtension
 from .settings import Settings
 
 logger = structlog.stdlib.get_logger("cuneus")
+
+
+def _get_suppress_modules():
+    """Return the modules for rich to suppress.
+
+    This helps reduce the amount of noise that we get from the traceback
+    """
+    modules = []
+    for name in ["starlette", "fastapi", "asyncio", "anyio", "uvicorn"]:
+        try:
+            modules.append(__import__(name))
+        except ImportError:
+            pass
+    return modules
+
+
+def _get_exception_formatter() -> Any:
+    """Use rich if available, with sane defaults. Otherwise plain."""
+    try:
+        import rich  # type: ignore
+
+        return structlog.dev.RichTracebackFormatter(
+            max_frames=5,
+            show_locals=True,
+            suppress=_get_suppress_modules(),
+        )
+    except ImportError:
+        return structlog.dev.plain_traceback
 
 
 def add_otel_context(
@@ -64,7 +92,9 @@ def configure_structlog(settings: Settings | None = None) -> None:
         term_width = shutil.get_terminal_size().columns
         pad_event = term_width - 36
         renderer: structlog.types.Processor = structlog.dev.ConsoleRenderer(
-            colors=True, pad_event_to=pad_event
+            colors=True,
+            pad_event_to=pad_event,
+            exception_formatter=_get_exception_formatter(),
         )
 
     # Configure structlog
