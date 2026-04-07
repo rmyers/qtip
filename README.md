@@ -255,3 +255,4 @@ Base class with hooks:
 ## License
 
 MIT
+
