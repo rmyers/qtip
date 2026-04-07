@@ -19,7 +19,7 @@ pip install cuneus[database]  # SQLAlchemy, asyncpg, alembic
 pip install cuneus[all]       # Everything
 ```
 
-## Quick Start
+## Quick Start (Usage)
 
 ```python
 # app/main.py
