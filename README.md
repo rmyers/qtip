@@ -6,6 +6,7 @@
 
 The name comes from Roman architecture: a _cuneus_ is the wedge-shaped stone in a Roman arch. Each stone is simple on its own, but together they lock under pressure to create structures that have stood for millennia—no rebar required.
 
+
 ## Installation
 
 ```bash
